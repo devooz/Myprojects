@@ -1,0 +1,19 @@
+AZURE AGENT RUN AS A SERVICE IN VM AGENT:
+=========================================
+sudo ./svc.sh install [username]
+sudo ./svc.sh start
+sudo ./svc.sh status
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+
+JAVA INSTALLATION IN UBUNTU:
+===========================
+sudo apt update
+java -version
+sudo apt install default-jdk
+java -version
+
+MAVEN INSTALLATION IN UBUNTU:
+============================
+sudo apt install maven
+mvn -version

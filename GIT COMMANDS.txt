@@ -1,0 +1,21 @@
+>git clone https://github.com/Shyam2810/GITHUB-_DEMO_REPO.git
+	ADD THE FILES TO THE GITHUB REPOS FOLDER(LOCAL) MANUALLY
+	>git status:  THIS WILL COMPARE MY GITHUB REPOS WITH LOCAL MACHINE FOLDER
+			README.md file is deleted
+	
+		untracked files:
+		sample.txt
+	>git add .
+	>git restore --staged .
+	>git commit -m "NEW CODE ADDED"
+	>git push
+	>git pull
+
+git branch : LIST OUT ALL THE BRANCHES AVAILBLE
+
+git branch dev_br : NEW BRANCH dev_br will be created locally
+
+git checkout dev_br : dev_br will become the priority branch where we can push the code.
+
+git push --set-upstream origin dev_br : new dev_br branch will be published at azure repos and code will be pushed to my new dev_br
+
