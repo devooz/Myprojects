@@ -1,0 +1,6 @@
+webserver:
+  name: webserver303
+  replicas: 2
+  service: svc-webserver303
+  port: 80
+  image: mcr.microsoft.com/dotnet/core/samples:aspnetapp

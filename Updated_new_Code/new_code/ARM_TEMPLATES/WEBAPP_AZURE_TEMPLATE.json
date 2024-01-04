@@ -1,0 +1,99 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "subscriptionId": {
+            "type": "string",
+	    "defaultValue": "0fbd6c30-4905-4612-b591-1886c29d279f"
+        },
+        "name": {
+            "type": "string",
+	    "defaultValue": "VRITSOLWEBAPPPPP"
+        },
+        "location": {
+            "type": "string",
+    	    "defaultValue": "East US"
+        },
+        "hostingPlanName": {
+            "type": "string",
+	    "defaultValue": "ASP-VRITRG"
+        },
+        "serverFarmResourceGroup": {
+            "type": "string",
+	    "defaultValue": "VRIT-RG"
+        },
+        "alwaysOn": {
+            "type": "bool",
+	    "defaultValue": "true"
+        },
+        "sku": {
+            "type": "string",
+	    "defaultValue": "Basic"
+        },
+        "skuCode": {
+            "type": "string",
+	    "defaultValue": "B1"
+        },
+        "workerSize": {
+            "type": "string",
+	    "defaultValue": "Small"
+        },
+        "workerSizeId": {
+            "type": "string",
+	    "defaultValue": "111"
+        },
+        "numberOfWorkers": {
+            "type": "string",
+	    "defaultValue": "1"
+        },
+        "linuxFxVersion": {
+            "type": "string",
+	    "defaultValue": "DOTNETCORE|3.0"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "apiVersion": "2018-11-01",
+            "name": "[parameters('name')]",
+            "type": "Microsoft.Web/sites",
+            "location": "[parameters('location')]",
+            "tags": null,
+            "dependsOn": [
+                "[concat('Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]"
+            ],
+            "properties": {
+                "name": "[parameters('name')]",
+                "siteConfig": {
+                    "appSettings": [],
+                    "linuxFxVersion": "[parameters('linuxFxVersion')]",
+                    "alwaysOn": "[parameters('alwaysOn')]"
+                },
+                "serverFarmId": "[concat('/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('serverFarmResourceGroup'), '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]",
+                "clientAffinityEnabled": false,
+                "virtualNetworkSubnetId": null
+            }
+        },
+        {
+            "apiVersion": "2018-11-01",
+            "name": "[parameters('hostingPlanName')]",
+            "type": "Microsoft.Web/serverfarms",
+            "location": "[parameters('location')]",
+            "kind": "linux",
+            "tags": null,
+            "dependsOn": [],
+            "properties": {
+                "name": "[parameters('hostingPlanName')]",
+                "workerSize": "[parameters('workerSize')]",
+                "workerSizeId": "[parameters('workerSizeId')]",
+                "numberOfWorkers": "[parameters('numberOfWorkers')]",
+                "reserved": true,
+                "zoneRedundant": false
+            },
+            "sku": {
+                "Tier": "[parameters('sku')]",
+                "Name": "[parameters('skuCode')]"
+            }
+        }
+    ]
+}

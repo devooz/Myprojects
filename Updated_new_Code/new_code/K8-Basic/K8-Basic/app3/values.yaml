@@ -1,0 +1,14 @@
+webserver:
+  name: webserver22
+  replicas: 5
+  service: svc-webserver22
+  port: 80
+  image: httpd
+
+
+appserver:
+  name: appserver22
+  replicas: 5
+  service: svc-appserver22
+  port: 80
+  image: httpd

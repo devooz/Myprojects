@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "value": "vritadmin"
+    },
+    "adminPassword": {
+      "value": "Vritadmin@11111"
+    },
+    "publicIpName": {
+      "value": "VRIT-PUBLICIP"
+    },
+    "publicIPAllocationMethod": {
+      "value": "Dynamic"
+    },
+    "publicIpSku": {
+      "value": "Basic"
+    },
+    "OSVersion": {
+      "value": "2019-datacenter-gensecond"
+    },
+    "vmSize": {
+      "value": "Standard_B2s"
+    },
+    "location": {
+      "value": "EASTUS"
+    },
+    "vmName": {
+      "value": "VRIT-VM"
+    }
+  }
+}

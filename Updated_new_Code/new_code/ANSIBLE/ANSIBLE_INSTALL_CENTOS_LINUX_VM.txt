@@ -1,0 +1,119 @@
+Create an Azure resource group.
+==============================
+>az group create --name VRIT-RG --location eastus
+
+Create the Azure virtual machine for Ansible.
+=============================================
+az vm create --resource-group VRIT-RG --name ANSIBLE-VM --image OpenLogic:CentOS:7.7:latest --admin-username vritadmin --admin-password Vritadmin@11111
+
+Get the public Ip address of the Azure virtual machine.
+======================================================
+az vm show -d -g VRIT-RG -n ANSIBLE-VM --query publicIps -o tsv
+
+Connect to your virtual machine via SSH
+======================================
+ssh vritadmin@<vm_ip_address>
+
+Install Ansible on the virtual machine
+Ansible 2.9 with the azure_rm module:
+====================================
+Run the following commands to configure Ansible 2.9 on Centos:
+
+# Update all packages that have available updates.
+sudo yum update -y
+
+# Install Python 3 and pip.
+sudo yum install -y python3-pip
+
+# Upgrade pip3.
+sudo pip3 install --upgrade pip
+
+# Install Ansible.
+pip3 install "ansible==2.9.17"
+
+# Install Ansible azure_rm module for interacting with Azure.
+pip3 install ansible[azure]
+
+Create Azure credentials:
+=========================
+To configure the Ansible credentials, you need the following information:
+
+Your Azure subscription ID and tenant ID
+The service principal application ID and secret
+Configure the Ansible credentials using one of the following techniques:
+
+Option 1: Create Ansible credentials file
+In this section, you create a local credentials file to provide credentials to Ansible. For security reasons, credential files should only be used in development environments.
+
+Azure CLI Install in VM(Centos):
+===============================
+1.Import the Microsoft repository key:
+$ sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+2.Create local azure-cli repository information:
+sudo sh -c 'echo -e "[azure-cli]
+name=Azure CLI
+baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/azure-cli.repo'
+
+3.Install with the yum install command:
+$ sudo yum install azure-cli
+
+4.Now run the login command:
+$ az login
+
+Service principle and subscription IDs
+======================================
+>az ad sp create-for-rbac --name "VritApp" --role="Contributor" --scopes="/subscriptions/SUB_ID"
+
+{
+  "appId": "00000000-0000-0000-0000-000000000000",
+  "displayName": "azure-cli-2017-06-05-10-41-15",
+  "name": "http://azure-cli-2017-06-05-10-41-15",
+  "password": "NGM8Q~Oh0hyyuIDjd6Dl24WGdXiaILx7oxCgRbup",
+  "tenant": "00000000-0000-0000-0000-000000000000"
+}
+
+
+Create and open a file named credentials:
+=========================================
+
+mkdir ~/.azure
+vi ~/.azure/credentials
+Insert the following lines into the file. Replace the placeholders with the service principal values.
+
+[default]
+subscription_id=<subscription_id>
+client_id=<service_principal_app_id>
+secret=<service_principal_password>
+tenant=<service_principal_tenant_id>
+
+Save and close the file.
+
+Test Ansible installation:
+==========================
+This section shows how to create a test resource group within your new Ansible configuration. 
+#Ansible 2.9 with azure_rm module
+ansible localhost -m azure_rm_resourcegroup -a "name=ansible-test location=eastus"
+
+Option 2: Write and run an Ansible playbook
+Save the following code as create_rg.yml.
+
+Ansible 2.9 with azure_rm module using yml script:
+
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Creating resource group
+      azure_rm_resourcegroup:
+        name: DEVOPS-RG
+        location: westus
+
+Run the playbook using ansible-playbook.
+=======================================
+ansible-playbook create_rg.yml
+Read more about the azure.azcollection.
+

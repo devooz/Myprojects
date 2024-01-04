@@ -1,0 +1,6 @@
+webserver:
+  name: webserver-prod
+  replicas: 5
+  service: svc-webserver-prod
+  port: 80
+  image: nginx

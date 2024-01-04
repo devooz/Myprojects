@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  labels:
+    env: webapp-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      env: webapp
+  template:
+    metadata:
+      labels:
+        env: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: vritsolacr.azurecr.io/webapp:432
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-webapp
+spec:
+  selector:
+    env: webapp
+  ports:
+  - protocol: "TCP"
+    port: 80
+    targetPort: 80
+  type: LoadBalancer

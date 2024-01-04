@@ -1,0 +1,14 @@
+webserver:
+  name: vritsol-webserver1
+  replicas: 2
+  service: svc-vritsol-webserver1
+  port: 80
+  image: nginx
+
+appserver:
+  name: vritsol-appserver1
+  replicas: 2
+  service: svc-vritsol-appserver1
+  port: 80
+  image: nginx
+

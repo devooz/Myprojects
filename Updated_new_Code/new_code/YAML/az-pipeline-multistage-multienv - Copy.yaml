@@ -1,0 +1,91 @@
+trigger:
+  - master
+
+################################################################################
+# VARIABLE SECTION
+################################################################################
+variables:
+  azureSubscription: 'SHYAM_SUBSCRIPTION (0fbd6c30-4905-4612-b591-1886c29d279f)' 
+  webAppName: "restdotnetapp"
+  env-dev: "vritdotnetwebapp-dev"
+  env-prod: "vritdotnetwebapp"
+  LinuxVM: "ubuntu-latest"
+  WindowsVM: "windows-latest"
+
+################################################################################
+# BUILD STAGE
+################################################################################
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        pool:
+          vmImage: $(LinuxVM)
+        steps:
+          - task: DotNetCoreCLI@2
+            displayName: Restore
+            inputs:
+              command: restore
+              projects: "**/*.csproj"
+          - task: DotNetCoreCLI@2
+            displayName: Build
+            inputs:
+              projects: "**/*.csproj"
+              arguments: "--configuration $(BuildConfiguration)"
+          - task: DotNetCoreCLI@2
+            displayName: Publish
+            inputs:
+              command: publish
+              publishWebProjects: True
+              arguments: "--configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory)"
+              zipAfterPublish: True
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Artifact"
+            inputs:
+              PathtoPublish: "$(build.artifactstagingdirectory)"
+            condition: succeededOrFailed()
+  
+################################################################################
+# DEPLOY TO DEV Stage
+################################################################################
+  - stage: DeployToDev
+    jobs:
+      - job: Deploy
+        pool:
+          vmImage: $(WindowsVM)
+        steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: "current"
+              downloadType: "single"
+              artifactName: "drop"
+              downloadPath: "$(System.ArtifactsDirectory)"
+          - task: AzureRmWebAppDeployment@4
+            inputs:
+              ConnectionType: "AzureRM"
+              azureSubscription: "$(azureSubscription)"
+              appType: "webApp"
+              WebAppName: "$(env-dev)"
+              packageForLinux: "$(System.ArtifactsDirectory)/**/*.zip"
+################################################################################
+# DEPLOY TO PROD Stage
+################################################################################
+  - stage: DeployToProd
+    jobs:
+      - job: Deploy
+        pool:
+          vmImage: $(LinuxVM)
+        steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: "current"
+              downloadType: "single"
+              artifactName: "drop"
+              downloadPath: "$(System.ArtifactsDirectory)"
+          - task: AzureRmWebAppDeployment@4
+            inputs:
+              ConnectionType: "AzureRM"
+              azureSubscription: "$(azureSubscription)"
+              appType: "webApp"
+              WebAppName: "$(env-prod)"
+              packageForLinux: "$(System.ArtifactsDirectory)/**/*.zip"

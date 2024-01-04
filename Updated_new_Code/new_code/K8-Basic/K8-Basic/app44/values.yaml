@@ -1,0 +1,14 @@
+webserver:
+  name: webserver222
+  replicas: 5
+  service: svc-webserver222
+  port: 80
+  image: nginx
+
+appserver:
+  name: appserver222
+  replicas: 5
+  service: svc-appserver222
+  port: 80
+  image: nginx
+

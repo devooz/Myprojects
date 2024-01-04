@@ -1,0 +1,70 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- master
+
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '864f99ae-5ba7-4ccc-b46d-3d5558e27aee'
+  imageRepository: 'webapp'
+  containerRegistry: 'vritsolacr.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+- stage: HelmDownload
+  displayName: Helm Download
+  jobs:
+  - job: HelmDownload
+    displayName: HelmDownload
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: HelmInstaller@0
+      inputs:
+        helmVersion: 'latest'
+        installKubectl: true
+- stage: Deploy
+  displayName: Deploy
+  jobs:
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: HelmDeploy@0
+      inputs:
+        connectionType: 'Azure Resource Manager'
+        azureSubscription: 'SHYAM_SUBSCRIPTION(1)(0fbd6c30-4905-4612-b591-1886c29d279f)'
+        azureResourceGroup: 'VRIT-RG'
+        kubernetesCluster: 'VRITCLUSTER'
+        namespace: 'prod'
+        command: 'install'
+        chartType: 'FilePath'
+        chartPath: './helm-chart/'
+        waitForExecution: false

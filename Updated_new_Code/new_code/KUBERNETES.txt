@@ -1,0 +1,164 @@
+GO TO CMD PROMPT
+1.Make sure we have azure cli installed first in our machine.
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+az login
+sudo az aks install-cli ===> download your kubectl.exe in machine
+set PATH=%PATH%;C:\Users\DELL\.azure-kubectl
+PATH=$PATH:/usr/local/bin  
+KUBECTL WILL BE INSTALLED IN YOUR MACHINE at C:\Users\xxxx\.azure-kubectl
+
+az aks get-credentials -g VRIT-RG -n VRITCLUSTER
+config file ==> token 
+===================================================================
+IN UBUNTU:
+>curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+>az login
+>sudo az aks install-cli
+>PATH=$PATH:/usr/local/bin
+>sudo kubectl version --client  |  kubectl version --short.
+>sudo kubelogin --version
+
+>export KUBECONFIG=/usr/bin  |  /home/vritadmin/.kube/cache/kubelogin/
+>sudo kubelogin convert-kubeconfig -l azurecli
+sudo kubelogin convert-kubeconfig
+
+to get the connection from kubectl(CMD) to CLUSTER (AZURE)
+>az aks get-credentials -g VRIT-RG -n VRITCLUSTER
+C:\Users\DELL\.kube==> config file==> 
+Merged "VRITCLUSTER" as current context in /home/vritadmin/.kube/config
+================================================================
+IN WINDOWS:
+1. INSTALL AZURE CLI IN WINDOWS VM BY SEARCHING IN GOOGLE, DOWNLOAD THE FILE AND INSTALL.
+2.PS C:\Users\vritadmin> $targetDir="$env:USERPROFILE\.azure-kubelogin"
+3.PS C:\Users\vritadmin> $oldPath = [System.Environment]::GetEnvironmentVariable("Path","User")
+4.PS C:\Users\vritadmin> $oldPathArray=($oldPath) -split ";"
+5.PS C:\Users\vritadmin> if(-Not($oldPathArray -Contains "$targetDir")) {
+     write-host "Permanently adding $targetDir to User Path"
+     $newPath = "$oldPath;$targetDir" -replace ";+", ";"
+     [System.Environment]::SetEnvironmentVariable("Path",$newPath,"User")
+     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","User"),[System.Environment]::GetEnvironmentVariable("Path","Machine") -join ";"
+}
+##Permanently adding C:\Users\vritadmin\.azure-kubelogin to User Path
+
+6. PS C:\Users\vritadmin> az login --tenant 8f9f34f9-337f-4eac-a7a0-2e09d709a790
+7. PS C:\Users\vritadmin> az account set --subscription 0fbd6c30-4905-4612-b591-1886c29d279f
+8.PS C:\Users\vritadmin> az aks get-credentials --resource-group VRIT-RG --name VRITCLUSTER
+##Merged "VRITCLUSTER" as current context in C:\Users\vritadmin\.kube\config
+
+9. az aks install-cli 
+   set PATH=%PATH%;C:\Users\vritadmin\.azure-kubectl (LINUX)
+   $env:path += ';C:\Users\vritadmin\.azure-kubectl'(WINDOWS)
+
+## PS C:\Users\vritadmin> export KUBECONFIG=C:\Users\vritadmin\.azure-kubelogin
+10. PS C:\Users\vritadmin> kubelogin convert-kubeconfig
+11.PS C:\Users\vritadmin> kubectl get pods
+===================================================================
+>kubectl get nodes
+>kubectl get pods/po
+>kubectl get ns
+>kubectl get svc/services
+>kubectl get deployments
+
+>kubectl run webserver --image nginx:1.20 (webserver==> name of the pod)
+
+webserver(pod)==> webserver(container)==>nginx(image)
+
+basic commands:
+==============
+1. kubectl get resource_name(pods,nodes,ns,svc,deployments)
+2. kubectl delete pod <pod_name>
+3. kubectl logs <pod_id>
+4. kubectl describe pod <pod_id>
+5. kubectl run pod_name --image image_name:TAG
+6. kubectl get pods -o wide (getting ip address of pods)
+7. kubectl scale deployment webserver1 --replicas=10
+
+
+YAML FOR KUBERNETES:
+====================
+
+   - STAGES: 
+	STAGE:AZURE DEVOPS
+        JOBS:USA
+	JOB:
+	  -PYTHON
+	  - PERL
+	  - SHELL SCRIPT
+
+   - RAMAN:
+	ROLE:AZURE DEVOPS
+        JOB_LOC:AUS
+	SKILLS:
+	  - PYTHON
+	  - KUBERNETES
+	  - HELM CHARTS
+===============================================
+1. API VERSION: V1
+2. KIND : POD
+3. METADATA: NAME OF THE POD,NS(ENV NAME)
+4. SPECIFICATIONS:IMAGE NAME:TAG   NGINX:2.4
+
+kubectl run pod_name --image image_name:TAG
+
+WE CAN RUN THE KUBERNETES YAML FILE==>
+c:/>kubctl apply -f pod.yml
+
+cd D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic
+D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic>kubectl apply -f pod.yaml
+D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic>kubectl apply -f .\SERVICE_DEMO\
+
+======================================================================
+
+pod running => deleted
+
+deployments ==>when we want to deploy group of pods
+	       when pod is deleted , then automatically new pod will be created.
+
+replicaset =10 pods
+
+WE CAN RUN THE KUBERNETES YAML FILE==>
+c:/>kubctl apply -f D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic/deployment.yml
+
+kubectl scale deployment webserver1 --replicas=2
+
+cd D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic
+D:\AZURE DEVOPS TRAINING\new_code\K8-Basic\K8-Basic>kubectl apply -f ./app1/
+
+>kubectl get pods==> 10 pods running
+>kubectl delete pod <pod_id>
+>kubectl get pods ==> 10 pods
+>kubectl scale deployment webserver --replicas=10
+========================================================================
+TO RUN HELM CHART:
+>helm install helm-app ./app33/ -n dev
+>helm upgrade helm-app ./app33/
+========================================================================
+NAMESPACES:
+>kubectl get ns ==> default ns
+>kubectl create ns dev/qa/uat/prod
+>helm install app33 ./app33/ -n dev/qa/uat/prod
+>kubectl get pods -n dev/qa/uat/prod
+>kubectl get svc -n dev/qa/uat/prod
+
+$(Build.BuildId)
+
+kubectl create secret docker-registry acr-secret \
+    --namespace default \
+    --docker-server=vritacrsol.azurecr.io \
+    --docker-username=VRITACRSOL \
+    --docker-password=FnPDvlo7Byn2JzVjDtoiz7PUdlOuDPvakPgpR8DEVH+ACRC4p2n1
+
+
+secretvalue =ksF8Q~08nQTAM5GP7C7xhbxW6xwCK.3Sm2wxFcsA
+clientid = 24ed0f52-76c6-4320-8516-45bc01a4881b
+scopeid = api://24ed0f52-76c6-4320-8516-45bc01a4881b/default
+
+
+
+
+myjavaimage
+
+
+
+
+

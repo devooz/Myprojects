@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: middleware
+  labels:
+    app: middleware
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: middleware
+  template:
+    metadata:
+      labels:
+        app: middleware
+    spec:
+      containers:
+      - name: middleware
+        image: vritacesol.azurecr.io/myjavaimage:#{buildNo}#
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+        env:
+        - name: api_env
+          value: "azure-uat"
+        - name: RDS_HOSTNAME
+          valueFrom:
+            secretKeyRef:
+              name: middlewaredbsecret
+              key: RDS_HOSTNAME
+        - name: RDS_PORT
+          valueFrom:
+            secretKeyRef:
+              name: middlewaredbsecret
+              key: RDS_PORT
+        - name: RDS_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: middlewaredbsecret
+              key: RDS_DB_NAME
+        - name: RDS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: middlewaredbsecret
+              key: RDS_USERNAME
+        - name: RDS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: middlewaredbsecret
+              key: RDS_PASSWORD
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+      imagePullSecrets:
+      - name: acr-secret
+
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: middleware-hpa
+spec:
+  maxReplicas: 2
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: middleware
+  targetCPUUtilizationPercentage: 70 # target CPU utilization
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: middleware
+spec:
+  selector:
+    app: middleware
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080

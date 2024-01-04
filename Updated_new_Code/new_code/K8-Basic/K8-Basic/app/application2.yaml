@@ -1,0 +1,74 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: appserver3
+  labels:
+    env: backend3
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      env: backend3
+  template:
+    metadata:
+      labels:
+        env: backend3
+    spec:
+      containers:
+      - image: httpd
+        name: httpd
+        ports:
+        - containerPort: 80
+          name: http
+
+---
+                                                                                        
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-appserver3
+spec:
+  selector:
+    env: backend3
+  ports:
+  - protocol: "TCP"
+    port: 80
+    targetPort: 80
+---
+
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: webserver3
+  labels:
+    env: frontend3
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      env: frontend3
+  template:
+    metadata:
+      labels:
+        env: frontend3
+    spec:
+      containers:
+      - image: httpd
+        name: httpd
+        ports:
+        - containerPort: 80
+          name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-webserver3
+spec:
+  selector:
+    env: frontend3
+  ports:
+  - protocol: "TCP"
+    port: 80
+    targetPort: 80
+  type: LoadBalancer

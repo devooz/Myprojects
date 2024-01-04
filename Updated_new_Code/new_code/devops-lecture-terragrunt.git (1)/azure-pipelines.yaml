@@ -1,0 +1,316 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# CI/CD PIPELINE FOR THE INFRASTRUCTURE OF HDFPORTAL
+#
+# This pipeline contains 3 stages:
+# 1. Init   - Initialize terraform remote state
+# 2. Validate - Validate the terraform code
+# 3. Plan   - Plan the infrastructure
+# 4. Apply - Apply the changes to the infrastructure
+# ---------------------------------------------------------------------------------------------------------------------
+# parameters:
+# - name: scope
+#   displayName: Destroy Scope
+#   type: string
+#   default: vnet
+#   values:
+#   - virtual-machine
+#   - vnet
+trigger:
+- azure-main
+
+pool:
+  name: Uat-agent
+  
+variables:
+  - group: Terragrunt-verify
+  
+stages:
+# ---------------------------------------------------------------------------------------------------------------------
+# Initalization stage
+# Initialize a resource group with a storage account and a container that will be used as remote state.
+# Terraform needs to store it's state somewhere to keep track of the infrastructure, with this stage we ensure that
+# the remote state will be created.
+# ---------------------------------------------------------------------------------------------------------------------
+- stage: Init
+  jobs:
+  - job: InitRemoteState
+    steps:    
+      - task: Bash@3
+        inputs:
+          targetType: 'inline'
+          
+          script: |
+           
+            #!/usr/bin/env bash
+            set -euo pipefail
+            
+            #curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+            
+            # Login into Azure using a service principal
+            az login --service-principal --username $ARM_CLIENT_ID --password $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+            
+            # Set default values for resource group and location so we don't have to repeat them
+            az configure --defaults location=$REMOTE_STATE_LOCATION
+            az configure --defaults group=$REMOTE_STATE_RESOURCE_GROUP
+            
+            # Create a resource group for our remote state if it doesn't exist
+            if [ $(az group exists --name $REMOTE_STATE_RESOURCE_GROUP) = false ]; then
+              echo "Creating resource group for remote state..."
+              az group create -n $REMOTE_STATE_RESOURCE_GROUP
+            else
+              echo "Resource group already exists."
+            fi
+            
+            STORAGE_ACCOUNT_NAME=$(az storage account list --query "[].name" -o tsv) 
+            
+            # Create a storage account for our remote state if it doesn't exist
+            if [[ $STORAGE_ACCOUNT_NAME != $REMOTE_STATE_STORAGE_ACCOUNT ]]; then
+              echo "Creating storage account for remote state..."
+              az storage account create -n $REMOTE_STATE_STORAGE_ACCOUNT --sku Standard_LRS
+            else
+              echo "Storage account already exists."
+            fi
+            
+            STORAGE_ACCOUNT_KEY=$(az storage account keys list -n $REMOTE_STATE_STORAGE_ACCOUNT --query "[0].value" -o tsv)  
+            STORAGE_CONTAINER_NAME=$(az storage container list --account-key $STORAGE_ACCOUNT_KEY --account-name $REMOTE_STATE_STORAGE_ACCOUNT --query "[].name" -o tsv)
+            
+            # Create a storage container if it doesn't exist
+            if [[ $STORAGE_CONTAINER_NAME != $REMOTE_STATE_STORAGE_CONTAINER ]]; then
+              echo "Creating storage container for remote state..."
+              az storage container create -n $REMOTE_STATE_STORAGE_CONTAINER --account-name $REMOTE_STATE_STORAGE_ACCOUNT --account-key $STORAGE_ACCOUNT_KEY
+            else
+              echo "Storage container already exists."
+            fi
+        env:
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+          ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+        displayName: 'Init remote state' 
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Validate stage
+# In this stage we are performing terragrunt validation
+# ---------------------------------------------------------------------------------------------------------------------
+- stage: Validate
+  dependsOn: Init
+  jobs:
+  - job: Validate
+    steps:
+
+    - script: terragrunt run-all validate --terragrunt-working-dir ./live/dev --terragrunt-source-update
+      displayName: 'Run terragrunt run-all validate'
+      env:
+         ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+         ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+         ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+         ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Plan stage
+# In this stage we are performing validation and creating the plan for the infrastrucure, but before we can do that we
+# first need to download terragrunt.
+# ---------------------------------------------------------------------------------------------------------------------
+
+- stage: Plan
+  dependsOn: Validate
+  jobs:
+  - job: Plan
+    steps:
+    - task: Bash@3
+      inputs:
+        targetType: 'inline'
+        script: |
+          
+          #!/usr/bin/env bash
+          set -euo pipefail
+          
+          LOG_FILE_NAME=plan.log
+          
+          # Run plan all and display output both to terminal and the log file temp.log
+          terragrunt run-all plan --terragrunt-working-dir ./live/dev --terragrunt-non-interactive 2>&1 | tee temp.log
+          
+          # Remove bash colors from log file and put the output into the new log file
+          sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" temp.log > ${LOG_FILE_NAME}
+      env:
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+          ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+      displayName: 'Run terragrunt run-all plan'
+    - task: CopyFiles@2
+      inputs:
+        contents: 'plan.log'
+        targetFolder: $(Build.ArtifactStagingDirectory)
+      displayName: 'Copy plan to artifact staging directory'
+
+    - task: PublishPipelineArtifact@0
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'Plan'
+      displayName: 'Publish Plan Artifact'
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Apply stage
+# In this stage we are applying/deplyoing our changes to the infrastructure. 
+# This stage will only run on the master and develop branches and needs a manual approval.
+# Similarly to the Plan stage we first need to download terragrunt. After that we apply our
+# changes by calling terragrunt run-all apply.
+# ---------------------------------------------------------------------------------------------------------------------
+
+- stage: Apply
+  dependsOn: Plan
+
+  condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/azure-main', 'refs/heads/develop', 'refs/heads/master'))
+
+  variables:
+    ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/azure-main') }}:
+      environment: 'terraform-dev-env'
+    ${{ if ne(variables['Build.SourceBranch'], 'refs/heads/azure-main') }}:
+      environment: 'dev'
+  jobs:
+    - job: "waitForValidation"
+      displayName: "Wait > Wait for manual appoval"
+      pool: "server"
+      timeoutInMinutes: "4320" # job times out in 3 days
+      steps:
+        - task: ManualValidation@0
+          timeoutInMinutes: "1440" # task times out in 1 day
+          inputs:
+            notifyUsers: rkrvrit@gmail.com
+            instructions: "There are resources being provisioned as part of this deployment, please review the output of Terraform plan before approving."
+            onTimeout: "reject"
+    
+    - job: "TerraformApprove"
+      displayName: "Terraform > Apply"
+      dependsOn: "waitForValidation"
+      timeoutInMinutes: "1440" # job times out in 1 day
+      steps:
+      - task: Bash@3
+        timeoutInMinutes: "180"
+        inputs:
+              targetType: 'inline'
+              script: |
+                   # Write your commands here
+                   
+                   #!/usr/bin/env bash
+                   set -euo pipefail
+                   
+                   LOG_FILE_NAME=apply.log
+                   
+                   # Run apply all and display output both to terminal and the log file temp.log
+                   terragrunt run-all apply --terragrunt-working-dir live/dev --terragrunt-non-interactive 2>&1 | tee temp.log
+                   
+                   # Remove bash colors from log file and put the output into the new log file
+                   sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" temp.log > ${LOG_FILE_NAME}
+        env:
+                  ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+                  ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+                  ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+                  ARM_TENANT_ID: $(ARM_TENANT_ID)
+        displayName: 'Run terragrunt run-all apply'
+
+      - task: CopyFiles@2
+        inputs:
+              contents: 'apply.log'
+              targetFolder: $(Build.ArtifactStagingDirectory)
+        displayName: 'Copy apply output to artifact staging directory'
+        
+      - task: PublishPipelineArtifact@0
+        inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'Apply'
+        displayName: 'Publish apply artifact'
+
+        
+# ---------------------------------------------------------------------------------------------------------------------
+# Destroy All stage
+# ---------------------------------------------------------------------------------------------------------------------
+
+- stage: Destroy
+  displayName: "Terraform Destroy All: Manual Approval"
+  dependsOn: Plan
+  condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/azure-main', 'refs/heads/develop'))
+  variables:
+    ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/azure-main') }}:
+        environment: 'terraform-dev-env'
+    ${{ if ne(variables['Build.SourceBranch'], 'refs/heads/azure-main') }}:
+        environment: 'dev'
+    
+  jobs:
+    - job: "waitForValidation"
+      displayName: "Wait > Wait for manual appoval"
+      pool: "server"
+      timeoutInMinutes: "4320" # job times out in 3 days
+      steps:
+        - task: ManualValidation@0
+          timeoutInMinutes: "1440" # task times out in 1 day
+          inputs:
+            notifyUsers: AKanojia@zuelligpharma.com
+            instructions: "There are resources being destroyed as part of this deployment, please review the output of Terraform plan before approving."
+            onTimeout: "reject"
+    - job: "TerraformApprove"
+      displayName: "Terraform > Destroy"
+      dependsOn: "waitForValidation"
+      
+      steps:
+       - task: Bash@3
+         inputs:
+           targetType: 'inline'
+           arguments: 'destroy.log'
+           displayName: 'Run terragrunt run-all destroy'
+           script: |
+         
+             #!/usr/bin/env bash
+             set -euo pipefail
+             
+             LOG_FILE_NAME=${1:-plan.log}
+             
+             # Run destroy all and display output both to terminal and the log file temp.log
+             terragrunt run-all destroy --terragrunt-working-dir live/dev --terragrunt-non-interactive 2>&1 | tee temp.log
+             
+             # Remove bash colors from log file and put the output into the new log file
+             sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" temp.log > ${LOG_FILE_NAME}
+         env:
+              ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+              ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+              ARM_TENANT_ID: $(ARM_TENANT_ID)  
+
+
+
+# # ---------------------------------------------------------------------------------------------------------------------
+# # Destroy Optional Manual stage
+# # ---------------------------------------------------------------------------------------------------------------------
+                
+# - stage: DestroyOptional
+#   displayName: "Terraform Optional Destroy: Manual Trigger"
+#   dependsOn: Plan
+#   condition: eq(variables['Build.Reason'], 'Manual')
+    
+#   jobs:
+#     - job: "TerraformDestroy"
+#       displayName: "Terraform > Destroy Optional"
+#       steps:
+#        - task: Bash@3
+#          inputs:
+#            targetType: 'inline'
+#            arguments: 'destroy.log'
+#            displayName: 'Run terragrunt run-all destroy'
+#            script: |
+         
+#              #!/usr/bin/env bash
+#              set -euo pipefail
+             
+#              LOG_FILE_NAME=${1:-plan.log}
+             
+#              # Run destroy all and display output both to terminal and the log file temp.log
+#              terragrunt run-all destroy --terragrunt-working-dir ./terraform/azure/infra/${{ parameters.scope }} --terragrunt-non-interactive 2>&1 | tee temp.log
+             
+#              # Remove bash colors from log file and put the output into the new log file
+#              sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" temp.log > ${LOG_FILE_NAME}
+#          env:
+#               ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+#               ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+#               ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+#               ARM_TENANT_ID: $(ARM_TENANT_ID)

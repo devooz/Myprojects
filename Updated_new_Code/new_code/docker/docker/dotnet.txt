@@ -1,0 +1,95 @@
+Create a Dockerfile
+Ok in this part we will create a file called Dockerfile. Its job is to specify what OS we need, what commands we want to be installed, where to find our app code and lastly how to start up our application within the container. Look at the Dockerfile like a recipe for what and how. Ok then. Let's create it:
+
+touch Dockerfile
+Specify image
+
+For content, the first thing we need to define is an image we want to base it on. We also need to set a working directory where we want the files to end up on the container. We do that with the command FROM and WORKDIR, like so:
+
+# Dockerfile
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2 AS build-env
+
+WORKDIR /app
+What we are saying here is to go grab an image with a small OS image made for .Net Core. We also say that our working directory is /app.
+
+Copy project file
+
+Next, we need to copy the project file ending in .csproj. Additionally, we also need to call dotnet restore, to ensure we install all specified dependencies, like so:
+
+COPY *.csproj ./
+RUN dotnet restore
+Copy and Build
+
+Next, we need to copy our app files and build our app, like so:
+
+COPY . ./
+RUN dotnet publish -c Release -o out
+Build runtime image
+
+Here we again specify our image and our working directory, like so:
+
+FROM mcr.microsoft.com/dotnet/core/aspnet:2.2
+WORKDIR /app
+There is a difference though, this time we want to copy our built files to app/out:
+
+COPY --from=build-env /app/out .
+Starting the app
+
+Finally, we add a command for how to start up our app. We do that with the command ENTRYPOINT. ENTRYPOINT takes an array that transforms into a command-line invocation with arguments. Our command looks like so:
+
+ENTRYPOINT ["dotnet", "aspnetcoreapp.dll"]
+and simply means that it will invoke dotnet aspnetcoreapp.dll on the command line.
+
+The Dockerfile in its entirety looks like this:
+
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2 AS build-env
+WORKDIR /app
+
+# Copy csproj and restore as distinct layers
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Release -o out
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/core/aspnet:2.2
+WORKDIR /app
+COPY --from=build-env /app/out .
+ENTRYPOINT ["dotnet", "aspnetcoreapp.dll"]
+#Create a .dockerignore file
+Before we set out on our journey to build the instructions in the Dockerfile we need to address something, namely files/directories that we don't want. For this Docker tells us to create a file called .dockerignore. So what do we want in it? We want fast builds and to get that we need to ensure we don't directories like bin or obj in it.
+
+First, create your .dockerignore file:
+
+touch .dockerignore
+Enter the following in our .dockerignore file
+
+# .dockerignore
+
+Dockerfile
+[b|B]in
+[O|o]bj
+
+=========================================================
+
+FROM mcr.microsoft.com/dotnet/core/aspnet:3.0-buster-slim AS base
+WORKDIR /app
+EXPOSE 80
+
+FROM mcr.microsoft.com/dotnet/core/sdk:3.0-buster AS build
+WORKDIR /src
+COPY ["pswebapi.csproj", ""]
+RUN dotnet restore "./pswebapi.csproj"
+COPY . .
+WORKDIR "/src/."
+RUN dotnet build "pswebapi.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "pswebapi.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "pswebapi.dll"]

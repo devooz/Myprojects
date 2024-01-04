@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: middleware
+  labels:
+    app: middleware
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: middleware
+  template:
+    metadata:
+      labels:
+        app: middleware
+    spec:
+      containers:
+      - name: middleware
+        image: vritacrsol.azurecr.io/javaimage:#{buildNo}#
+        ports:
+        - containerPort: 8080
+      imagePullSecrets:
+      - name: acr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: middleware
+spec:
+  selector:
+    app: middleware
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

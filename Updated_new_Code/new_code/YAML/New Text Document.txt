@@ -1,0 +1,27 @@
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: '<Azure service connection>'
+    appType: webAppLinux
+    appName: '<name of web app>'
+    deployToSlotOrASE: true
+    resourceGroupName: '<name of resource group>'
+    slotName: staging
+
+- task: AzureAppServiceManage@0
+  inputs:
+    azureSubscription: '<Azure service connection>'
+    appType: webAppLinux
+    WebAppName: '<name of web app>'
+    ResourceGroupName: '<name of resource group>'
+    SourceSlot: staging
+    SwapWithProduction: true
+
+=======================
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET Core sdk'
+  inputs:
+    packageType: sdk
+    version: 3.1.402
+    installationPath: $(Agent.ToolsDirectory)/dotnet

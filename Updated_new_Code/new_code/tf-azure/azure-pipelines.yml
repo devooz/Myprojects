@@ -1,0 +1,32 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+        - script: |
+           terraform version
+    
+          
+          
+           terraform -chdir=dev init \
+           -backend-config='resource_group_name=VRIT-RG' \
+           -backend-config='storage_account_name=vritsolsa' \
+           -backend-config='container_name=tfstate' \
+           -backend-config='key=dev.terraform.tfstate' \
+           -backend-config='access_key=$(storage_key)'
+
+           az login
+           terraform -chdir=dev apply --auto-approve

@@ -1,0 +1,88 @@
+Azure CLI Install in VM:
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+Service principle and subscription IDs
+--------------------------------------------------
+>az ad sp create-for-rbac --name "VritApp" --role="Contributor" --scopes="/subscriptions/SUB_ID"
+
+{
+  "appId": "00000000-0000-0000-0000-000000000000",
+  "displayName": "azure-cli-2017-06-05-10-41-15",
+  "name": "http://azure-cli-2017-06-05-10-41-15",
+  "password": "NGM8Q~Oh0hyyuIDjd6Dl24WGdXiaILx7oxCgRbup",
+  "tenant": "00000000-0000-0000-0000-000000000000"
+}
+
+>az account show
+ "environmentName": "AzureCloud",
+  "homeTenantId": "8f9f34f9XXXXXXXXXXXXX",
+  "id": "0fbd6c3XXXXXXXXXX",
+  "isDefault": true,
+  "managedByTenants": [],
+  "name": "SHYAM_SUBSCRIPTION",
+  "state": "Enabled",
+  "tenantId": "8f9f34f9-337f-4XXXXXXXXXXXX",
+  "user": {
+    "cloudShellID": true,
+    "name": "live.com#XXXXXXX@gmail.com",
+    "type": "user"
+  }
+}
+======================================================
+>sudo apt update
+
+##Install Python commands:
+sudo apt install python2
+sudo apt-get install python3.6
+
+##Install Ansible commands
+--------------------------------------------------
+## Update and upgrade the packages
+>sudo apt update && sudo apt dist-upgrade -y
+
+## Install pre-requisite packages
+>sudo apt install -y libssl-dev libffi-dev python-dev python-pip
+>sudo apt install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget
+
+>sudo apt-get -y install python3-pip
+
+ansible-playbook create_rg.yml --extra-vars "name=VRIT-RG location=EASTUS"
+
+## Install Ansible and Azure SDK via pip
+>sudo pip install ansible[azure]
+
+
+Authentication Remote Ansible machine to Azure
+--------------------------------------------------
+mkdir ~/.azure
+nano ~/.azure/credentials
+
+Authenticate values
+--------------------------------------------------
+ [default]
+
+subscription_id=xxxx-xxxx-xxxx-xxxxx-xxxxxx-xx
+
+client_id=9093da51-a344-41b5-90f0-b13e255f3579
+
+secret=63ca3eef-11fd-41ef-a86a-717d65773d53
+
+tenant=xxxx-xxxx-xxxx-xxxxx-xxxxxx-xx
+
+
+Generate RSA key
+--------------------------------------------------
+ssh-keygen -t rsa
+chmod 755 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 644 ~/.ssh/authorized_keys
+ssh-copy-id vritadmin@127.0.0.1
+cat ~/.ssh/id_rsa
+
+Create Service Connection for Connecting AZURE to access ANSIBLE MACHINE 
+
+
+User name and password to login to the hotel web app
+--------------------------------------------------
+Username: me@smarthotel360.com
+Password: 1234
